@@ -1,0 +1,7 @@
+pywebview==6.2.1
+python-docx==1.2.0
+openpyxl==3.1.5
+pyinstaller==6.22.3
+pythonnet==3.2.1
+clr_loader==0.3.1
+cffi==2.1.1
