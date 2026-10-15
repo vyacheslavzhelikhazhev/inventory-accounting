@@ -110,6 +110,8 @@ def main():
         ctypes.windll.user32.MessageBoxW(None,'Приложение уже открыто на этом компьютере.','Матучет',0)
         instance.close();return
     try:
+        from runtime_bootstrap import prepare
+        prepare()
         import webview
         api=Api(Store(ROOT,RESOURCES))
         window=webview.create_window('Матучет',html=(RESOURCES/'ui/index.html').read_text(encoding='utf-8'),js_api=api,
@@ -138,6 +140,7 @@ def main():
                       storage_path=str(Path(tempfile.gettempdir())/('MatUchetWebView_'+uuid.uuid4().hex)))
     except Exception as e:
         logging.exception('Startup failed')
+        if '--smoke' in sys.argv or '--ui-smoke' in sys.argv:return 1
         import ctypes
         detail=('Не найден компонент программы: '+str(e.name)+'. Распакуйте полный архив целиком.') if isinstance(e,ModuleNotFoundError) else str(e)
         ctypes.windll.user32.MessageBoxW(None,'Не удалось открыть Матучет.\n'+detail+'\nЖурнал: '+str(ROOT/'Ошибки.log'),'Матучет',0)
@@ -146,7 +149,10 @@ def main():
         instance.seek(0);msvcrt.locking(instance.fileno(),msvcrt.LK_UNLCK,1);instance.close()
 
 if __name__=='__main__':
+    if '--runtime-test' in sys.argv:
+        from runtime_bootstrap import check
+        sys.exit(check(RESOURCES,ROOT))
     if '--self-test' in sys.argv:
         import test_shared
         sys.exit(test_shared.run(RESOURCES,ROOT))
-    main()
+    sys.exit(main())

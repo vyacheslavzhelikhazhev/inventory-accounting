@@ -195,6 +195,8 @@ def run(resources,test_root):
     suite=unittest.TestSuite([unittest.defaultTestLoader.loadTestsFromTestCase(PriceTests),unittest.defaultTestLoader.loadTestsFromTestCase(SharedTests)])
     import test_admin
     suite.addTests(test_admin.suite())
+    from test_runtime import RuntimeTests
+    suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(RuntimeTests))
     stream=io.StringIO();result=unittest.TextTestRunner(stream=stream,verbosity=2).run(suite)
     (Path(test_root)/'regression.json').write_text(json.dumps({'run':result.testsRun,'success':result.wasSuccessful(),'details':stream.getvalue()},ensure_ascii=False,indent=2),encoding='utf8')
     print(stream.getvalue());return 0 if result.wasSuccessful() else 1

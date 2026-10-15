@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import sys
 import zipfile
+import importlib.util
 
 ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / '.build'
@@ -19,7 +20,7 @@ def run(args, **kwargs):
 
 def verify_report(folder):
     report = json.loads((folder / 'regression.json').read_text(encoding='utf-8'))
-    if not report['success'] or report['run'] < 77:
+    if not report['success'] or report['run'] < 83:
         raise RuntimeError(report['details'])
     print(f"Passed {report['run']} regression tests", flush=True)
 
@@ -61,6 +62,15 @@ def main():
     snapshot = store.snapshot()
     if any(snapshot[k] for k in ['assets', 'employees', 'acts', 'history']):
         raise ValueError('New installations must have no working data')
+    managed = {}
+    for package, pattern in [('pythonnet', 'runtime/Python.Runtime.dll'), ('webview', 'lib/**/*.dll')]:
+        package_root = Path(importlib.util.find_spec(package).origin).parent
+        for path in package_root.glob(pattern):
+            managed[package + '/' + path.relative_to(package_root).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
+    if 'pythonnet/runtime/Python.Runtime.dll' not in managed or len(managed) < 3:
+        raise ValueError('Missing managed runtime dependencies')
+    manifest = BUILD / 'runtime_manifest.json'
+    manifest.write_text(json.dumps({'format': 1, 'files': managed}, indent=2), encoding='utf-8')
     run([sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean', '--onedir',
          '--windowed', '--name', 'Матучет', '--distpath', BUILD / 'dist',
          '--workpath', BUILD / 'pyinstaller', '--specpath', BUILD,
@@ -68,6 +78,7 @@ def main():
          '--add-data', f'{ROOT / "seed.json"};.',
          '--add-data', f'{ROOT / "Шаблон_акта.docx"};.',
          '--add-data', f'{ROOT / "Шаблон_приема_передачи.docx"};.',
+         '--add-data', f'{manifest};.',
          '--hidden-import', '_cffi_backend', '--collect-all', 'webview', ROOT / 'main.py'], env=env)
     dist = BUILD / 'dist' / 'Матучет'
     frozen_tests = qa / 'frozen'
@@ -76,6 +87,16 @@ def main():
     run([dist / 'Матучет.exe', '--self-test'], env=env, timeout=180)
     verify_report(frozen_tests)
     resources = dist / '_internal'
+    # Reproduce Explorer extraction of a downloaded ZIP; startup must remove the
+    # markers only after verifying the known libraries (ZIP does not store ADS).
+    for name in managed:
+        (Path(str(resources / name) + ':Zone.Identifier')).write_text('[ZoneTransfer]\nZoneId=3\n', encoding='ascii')
+    env['MATUCHET_DATA'] = str(qa / 'runtime')
+    run([dist / 'Матучет.exe', '--runtime-test'], env=env, timeout=60)
+    report = json.loads((qa / 'runtime' / 'runtime-check.json').read_text(encoding='utf-8'))
+    if not report['success'] or set(report['unblocked']) != set(managed):
+        raise RuntimeError('Downloaded-DLL startup check failed: ' + str(report))
+    print('Verified .NET and WebView2 loading with Internet-zone markers', flush=True)
     if json.loads((resources / 'seed.json').read_text(encoding='utf-8')) != seed:
         raise ValueError('Packaged seed mismatch')
     files = [(p, p.relative_to(dist).as_posix()) for p in sorted(dist.rglob('*')) if p.is_file()]

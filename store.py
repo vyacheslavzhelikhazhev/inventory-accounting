@@ -83,7 +83,7 @@ class Store:
             return {'employees':self._all(c,'employees'),'assets':self._all(c,'assets'),
                     'acts':[dict(r) for r in c.execute('SELECT * FROM acts ORDER BY id DESC')],
                     'history':[dict(r) for r in c.execute('SELECT * FROM history ORDER BY id DESC')],
-                    **{k:self._meta(c,k) for k in ['objects','types','locations','issues','settings','revision','legacy']}, 'quality':self._quality(c), 'repairs':self._meta(c,'repairs') or [], 'version':'1.5.1'}
+                    **{k:self._meta(c,k) for k in ['objects','types','locations','issues','settings','revision','legacy']}, 'quality':self._quality(c), 'repairs':self._meta(c,'repairs') or [], 'version':'1.5.2'}
 
     def _backup(self,c):
         # All callers run this before beginning their write transaction.
@@ -104,7 +104,7 @@ class Store:
                 for name in ['Шаблон_акта.docx','Шаблон_приема_передачи.docx']:
                     template=self.root/name
                     if template.exists():files[name]=template
-                manifest={'format':'matuchet-backup-v1','version':'1.5.1','created':now(),'revision':self._meta(c,'revision'),'files':{name:hashlib.sha256(path.read_bytes()).hexdigest() for name,path in files.items()}}
+                manifest={'format':'matuchet-backup-v1','version':'1.5.2','created':now(),'revision':self._meta(c,'revision'),'files':{name:hashlib.sha256(path.read_bytes()).hexdigest() for name,path in files.items()}}
                 pending=file.with_suffix('.pending')
                 try:
                     with zipfile.ZipFile(pending,'w',zipfile.ZIP_DEFLATED) as z:
