@@ -20,6 +20,12 @@ test/
 Резервные копии/
 Выгрузки/
 Общий_учет.json
+Подключение_Битрикс.json
+Обмен/
+Сеанс.lock
+smoke.json
+regression.json
+appearance.json
 Битрикс*.json
 *.secret
 *.key
